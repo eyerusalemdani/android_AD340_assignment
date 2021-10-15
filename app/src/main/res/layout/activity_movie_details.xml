@@ -45,7 +45,7 @@
                 android:layout_height="150dp"
                 android:layout_below="@+id/llTopSection"
                 android:scaleType="centerCrop"
-                android:src="@color/grey"/>
+                android:src="@color/grey" />
 
             <TextView
                 android:id="@+id/director"

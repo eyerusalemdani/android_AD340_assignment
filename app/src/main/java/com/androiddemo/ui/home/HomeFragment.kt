@@ -12,6 +12,16 @@ import com.androiddemo.R
 import com.androiddemo.databinding.FragmentHomeBinding
 import com.androiddemo.ui.movies.MoviesActivity
 import com.androiddemo.ui.traffic.TrafficActivity
+import android.util.Log
+import com.androiddemo.ui.firebase.FirebaseActivity
+import com.androiddemo.utils.Constants
+import com.androiddemo.utils.SharedPreferenceUtil
+import com.androiddemo.utils.Utils
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.UserProfileChangeRequest
+import kotlinx.android.synthetic.main.fragment_home.*
+
 
 class HomeFragment : Fragment() {
 
@@ -22,16 +32,28 @@ class HomeFragment : Fragment() {
     // onDestroyView.
     private val binding get() = _binding!!
 
+    private var username = ""
+    private var email = ""
+    private var password = ""
+
+    private lateinit var sharedPreferenceUtil : SharedPreferenceUtil
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
         homeViewModel =
             ViewModelProvider(this).get(HomeViewModel::class.java)
 
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         val root: View = binding.root
+
+        sharedPreferenceUtil = SharedPreferenceUtil(requireContext())
+        if(sharedPreferenceUtil.getString(Constants.USERNAME, "") != "") {
+            startActivity(Intent(requireContext(), FirebaseActivity::class.java))
+            activity?.finish()
+        }
 
         binding.btnCities.setOnClickListener {
             Toast.makeText(requireContext(), resources.getString(R.string.cities), Toast.LENGTH_SHORT).show()
@@ -61,7 +83,85 @@ class HomeFragment : Fragment() {
             Toast.makeText(requireContext(), resources.getString(R.string.food), Toast.LENGTH_SHORT).show()
         }
 
+        binding.btnLogin.setOnClickListener {
+            signIn()
+        }
+
         return root
+    }
+
+
+    private fun signIn() {
+
+        username = etUsername.text.trim().toString()
+        email = etEmail.text.trim().toString()
+        password = etPassword.text.trim().toString()
+
+        Log.d("FIREBASE", "signIn")
+
+        // 1 - validate display name, email, and password entries
+        if(!validation()) {
+            return
+        }
+
+        // 2 - sign into Firebase
+        val mAuth: FirebaseAuth = FirebaseAuth.getInstance()
+
+        mAuth.signInWithEmailAndPassword(email, password)
+            .addOnCompleteListener(requireActivity()) { task ->
+                Log.d("FIREBASE", "signIn:onComplete:" + task.isSuccessful)
+                if (task.isSuccessful) {
+                    // 2 - save valid entries to shared preferences
+                    sharedPreferenceUtil.setString(Constants.USERNAME, username)
+                    sharedPreferenceUtil.save()
+
+                    // update profile. display name is the value entered in UI
+                    val user: FirebaseUser = FirebaseAuth.getInstance().currentUser!!
+                    val profileUpdates: UserProfileChangeRequest = UserProfileChangeRequest.Builder()
+                        .setDisplayName(username)
+                        .build()
+                    user.updateProfile(profileUpdates)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                Log.d("FIREBASE", "User profile updated.")
+                                // Go to FirebaseActivity
+                                startActivity(Intent(requireContext(), FirebaseActivity::class.java))
+                                activity?.finish()
+                            }
+                        }
+                } else {
+                    Log.d("FIREBASE", "sign-in failed")
+                    Toast.makeText(requireContext(), "Invalid email or password", Toast.LENGTH_SHORT).show()
+                }
+            }
+    }
+
+    private fun validation() : Boolean {
+        return when {
+            username.isEmpty() -> {
+                Toast.makeText(requireContext(), "Please enter username", Toast.LENGTH_SHORT).show()
+                false
+            }
+            email.isEmpty() -> {
+                Toast.makeText(requireContext(), "Please enter email", Toast.LENGTH_SHORT).show()
+                false
+            }
+            password.isEmpty() -> {
+                Toast.makeText(requireContext(), "Please enter password", Toast.LENGTH_SHORT).show()
+                false
+            }
+            !Utils.isEmailValid(email) -> {
+                Toast.makeText(requireContext(), "Please enter a valid email", Toast.LENGTH_SHORT).show()
+                false
+            }
+            password.length < 6 -> {
+                Toast.makeText(requireContext(), "Password must be atleast 6 digits long", Toast.LENGTH_SHORT).show()
+                false
+            }
+            else -> {
+                true
+            }
+        }
     }
 
     override fun onDestroyView() {

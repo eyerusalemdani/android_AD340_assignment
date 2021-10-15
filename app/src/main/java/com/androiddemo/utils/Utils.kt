@@ -3,8 +3,9 @@ package com.androiddemo.utils
 import android.content.Context
 import android.net.ConnectivityManager
 import com.androiddemo.model.Movies
+import java.util.regex.Pattern
 
-class Utils {
+public class Utils {
 
     companion object {
 
@@ -12,6 +13,13 @@ class Utils {
         {
             val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
             return connectivityManager.activeNetworkInfo != null && connectivityManager.activeNetworkInfo!!.isConnected
+        }
+
+        fun isEmailValid(email: String): Boolean {
+            val expression = "^[\\w\\.-]+@([\\w\\-]+\\.)+[A-Z]{2,4}$"
+            val pattern = Pattern.compile(expression, Pattern.CASE_INSENSITIVE)
+            val matcher = pattern.matcher(email)
+            return matcher.matches()
         }
 
         fun getMovies() : ArrayList<Movies> {
